@@ -248,6 +248,7 @@ class PyMultiTor(object):
 
         # Change IP Policy (Configuration)
         self.counter = itertools.count()
+        self.ready_marker_file = ""
         self.on_count = 0
         self.on_string = ""
         self.on_regex = ""
@@ -291,6 +292,12 @@ class PyMultiTor(object):
         )
 
         # When To Change IP Address
+        loader.add_option(
+            name="ready_marker_file",
+            typespec=str,
+            default="",
+            help="'1' will be written to this file when the proxy is ready to receive requests",
+        )
         loader.add_option(
             name="on_count",
             typespec=int,
@@ -337,6 +344,7 @@ class PyMultiTor(object):
         cmd_args = json.dumps({update: getattr(ctx.options, update) for update in updates})
         self.logger.debug(f"Running With CMD Args: {cmd_args}")
 
+        self.ready_marker_file = ctx.options.ready_marker_file
         self.on_count = ctx.options.on_count
         self.on_string = ctx.options.on_string
         self.on_regex = ctx.options.on_regex
@@ -362,6 +370,11 @@ class PyMultiTor(object):
         # Warn If No Change IP Configuration:
         if not any([self.on_count, self.on_string, self.on_regex, self.on_rst, self.on_status_code]):
             self.logger.warning("Change IP Configuration Not Set (Acting As Regular Tor Proxy)")
+
+    def running(self):
+        if self.ready_marker_file:
+            with open(self.ready_marker_file, "w") as f:
+                f.write("1")
 
     def create_response(self, request):
         response = requests.request(
@@ -501,6 +514,9 @@ def main(args=None):
                         default=5)
 
     # When To Change IP Address
+    parser.add_argument("--ready-marker-file",
+                        help="'1' will be written to this file when the proxy is ready to receive requests",
+                        default="")
     parser.add_argument("--on-count",
                         help="change ip every x requests (resources also counted)",
                         type=int,
@@ -531,6 +547,7 @@ def main(args=None):
         "--set", f"tor_timeout={sys_args['timeout']}",
         "--set", f"tor_tries={sys_args['tries']}",
         "--set", f"tor_processes={sys_args['processes']}",
+        "--set", f"ready_marker_file={sys_args['ready_marker_file']}",
         "--set", f"on_string={sys_args['on_string']}",
         "--set", f"on_regex={sys_args['on_regex']}",
         "--set", f"on_count={sys_args['on_count']}",
